@@ -1,11 +1,11 @@
 FROM nvidia/cuda:10.1-base
 
-# install basic wget to download miniconda and allow access to /opt
-# create jupyter user with bash shell, running as root works but causes issues on bind mounts
+# install git for accessing repositories 
+# and make /opt accessible for all users
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git sudo && \
-    chmod 777 /opt 
-    
+    apt-get install -y --no-install-recommends git && \
+    chmod 777 /opt
+
 SHELL ["/bin/bash", "-c"]
 
 # install miniconda into /opt/conda and delete downloaded file
@@ -73,7 +73,8 @@ RUN mkdir /opt/cache && \
 ENV TORCH_HOME ~/cache/torch
 ENV FASTAI_HOME ~/cache/fastai
 ENV HOME /root/
-RUN chmod -R a+rwX /root
+RUN chmod -R a+rwX /root && \
+    chmod -R a+rwX /opt
 
 # Make port 8888 available to the world outside this container
 EXPOSE 8888
