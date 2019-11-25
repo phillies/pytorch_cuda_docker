@@ -4,16 +4,14 @@ FROM nvidia/cuda:10.1-base
 # create jupyter user with bash shell, running as root works but causes issues on bind mounts
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git sudo && \
-    chmod 777 /opt && \
-    useradd --user-group --no-log-init --shell /bin/bash --create-home jupyter && \
-    echo "jupyter ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-USER jupyter
+    chmod 777 /opt 
+    
 SHELL ["/bin/bash", "-c"]
 
 # install miniconda into /opt/conda and delete downloaded file
 ENV CONDAROOT "/opt/conda"
-WORKDIR /home/jupyter
-ADD --chown=jupyter:jupyter https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh /home/jupyter/
+WORKDIR /root/
+ADD https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh /root/
 RUN mkdir ~/.conda && \
     bash Miniconda3-latest-Linux-x86_64.sh -b -p $CONDAROOT && \
     rm -rf Miniconda3-latest-Linux-x86_64.sh && \
@@ -56,10 +54,11 @@ RUN sed -i '/c.NotebookApp.notebook_dir/c\c.NotebookApp.notebook_dir = "'"/opt/n
     sed -i '/c.NotebookApp.token/c\c.NotebookApp.token = "'""'"' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.ip/c\c.NotebookApp.ip = "'"0.0.0.0"'"' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.terminado_settings/c\c.NotebookApp.terminado_settings = {"'"shell_command"'":["'"bash"'"]}' ~/.jupyter/jupyter_notebook_config.py && \
-    # sed -i '/c.NotebookApp.allow_root/c\c.NotebookApp.allow_root = True' ~/.jupyter/jupyter_notebook_config.py && \
+    sed -i '/c.NotebookApp.allow_root/c\c.NotebookApp.allow_root = True' ~/.jupyter/jupyter_notebook_config.py && \
     jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
     jupyter labextension install jupyterlab_tensorboard && \
     mkdir /opt/notebooks
+WORKDIR /opt/notebooks
 
 # Set the random seed and copy the utility scripts to the image
 ENV RANDOM_SEED 2019
@@ -73,6 +72,8 @@ RUN mkdir /opt/cache && \
     conda list -n torch --export --json > ~/requirements.json
 ENV TORCH_HOME ~/cache/torch
 ENV FASTAI_HOME ~/cache/fastai
+ENV HOME /root/
+RUN chmod -R a+rwX /root
 
 # Make port 8888 available to the world outside this container
 EXPOSE 8888
