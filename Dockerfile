@@ -1,12 +1,12 @@
 FROM nvidia/cuda:10.1-base
 
-# install git for accessing repositories 
-# and make /opt accessible for all users
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    chmod 777 /opt
-
+# install git for accessing repositories and acl to make /opt and /root and all files created within by default accessible for all users
 SHELL ["/bin/bash", "-c"]
+RUN apt-get update && apt-get install -y --no-install-recommends acl git && \
+    chmod -R a+rwXs /root && \
+    chmod -R a+rwXs /opt && \
+    setfacl -d -m o::rwx /opt &&\
+    setfacl -d -m o::rwx /root
 
 # install miniconda into /opt/conda and delete downloaded file
 ENV CONDAROOT "/opt/conda"
@@ -45,8 +45,10 @@ RUN echo "source activate torch" >> ~/.bashrc && \
     pip install --no-dependencies git+https://github.com/qubvel/segmentation_models.pytorch
 # pip install pytest-xdist pytest-sugar pytest-repeat pytest-picked pytest-forked pytest-flakefinder pytest-cov nbsmoke
 
-# configure jupyter-lab to run in the docker image as root with bash as terminal and no password
+# configure jupyter-lab to run in the docker image as root with bash as terminal and password protection
+# pass the password as command line argument --build-arg NOTEBOOK_PASSWORD=xxx where xxx is a sha1 hash as described here https://jupyter-notebook.readthedocs.io/en/stable/public_server.html#preparing-a-hashed-password
 # notebook directory is /opt/notebooks ==> this should be your mount point
+ARG NOTEBOOK_PASSWORD
 RUN jupyter-lab --generate-config
 RUN sed -i '/c.NotebookApp.notebook_dir/c\c.NotebookApp.notebook_dir = "'"/opt/notebooks"'"' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.open_browser/c\c.NotebookApp.open_browser = False' ~/.jupyter/jupyter_notebook_config.py && \
@@ -55,6 +57,7 @@ RUN sed -i '/c.NotebookApp.notebook_dir/c\c.NotebookApp.notebook_dir = "'"/opt/n
     sed -i '/c.NotebookApp.ip/c\c.NotebookApp.ip = "'"0.0.0.0"'"' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.terminado_settings/c\c.NotebookApp.terminado_settings = {"'"shell_command"'":["'"bash"'"]}' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.allow_root/c\c.NotebookApp.allow_root = True' ~/.jupyter/jupyter_notebook_config.py && \
+    sed -i '/c.NotebookApp.password/c\c.NotebookApp.password = "'"$NOTEBOOK_PASSWORD"'"' ~/.jupyter/jupyter_notebook_config.py && \
     jupyter labextension install @jupyter-widgets/jupyterlab-manager && \
     jupyter labextension install jupyterlab_tensorboard && \
     mkdir /opt/notebooks
