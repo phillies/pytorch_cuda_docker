@@ -3,16 +3,16 @@ FROM nvidia/cuda:10.1-base
 # install git for accessing repositories and acl to make /opt and /root and all files created within by default accessible for all users
 SHELL ["/bin/bash", "-c"]
 RUN apt-get update && apt-get install -y --no-install-recommends acl git && \
-    chmod -R a+rwXs /root && \
-    chmod -R a+rwXs /opt && \
-    setfacl -d -m o::rwx /opt &&\
-    setfacl -d -m o::rwx /root
+    chmod -R a+rwX,u+s,g+x /root && \
+    chmod -R a+rwX,u+s,g+s /opt && \
+    echo "umask 0000" >> /etc/profile && \
+    echo "umask 0000" >> /etc/bash.bashrc
 
 # install miniconda into /opt/conda and delete downloaded file
 ENV CONDAROOT "/opt/conda"
 WORKDIR /root/
 ADD https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh /root/
-RUN mkdir ~/.conda && \
+RUN umask 0000 && mkdir ~/.conda && \
     bash Miniconda3-latest-Linux-x86_64.sh -b -p $CONDAROOT && \
     rm -rf Miniconda3-latest-Linux-x86_64.sh && \
     source $CONDAROOT/etc/profile.d/conda.sh
@@ -22,7 +22,7 @@ RUN mkdir ~/.conda && \
 ENV PATH $CONDAROOT/bin:$PATH
 
 # Install pytorch and fastai through conda
-RUN conda update -n base -c defaults conda && \
+RUN umask 0000 && conda update -n base -c defaults conda && \
     conda create -n torch -y python=3.7 && \
     conda install -n torch pytorch torchvision cudatoolkit=10.1 -c pytorch && \
     conda install -n torch -c pytorch -c fastai fastai && \
@@ -39,7 +39,7 @@ RUN conda update -n base -c defaults conda && \
 
 # activate the torch environment to install further packages with pip which are not available or outdated on conda
 ENV PATH $CONDAROOT/envs/torch/bin:$PATH
-RUN echo "source activate torch" >> ~/.bashrc && \
+RUN umask 0000 && echo "source activate torch" >> ~/.bashrc && \
     source activate torch &&\
     pip install opencv-python albumentations pretrainedmodels efficientnet-pytorch torchsummary future absl-py jupyter-tensorboard hiddenlayer && \
     pip install --no-dependencies git+https://github.com/qubvel/segmentation_models.pytorch
@@ -49,8 +49,8 @@ RUN echo "source activate torch" >> ~/.bashrc && \
 # pass the password as command line argument --build-arg NOTEBOOK_PASSWORD=xxx where xxx is a sha1 hash as described here https://jupyter-notebook.readthedocs.io/en/stable/public_server.html#preparing-a-hashed-password
 # notebook directory is /opt/notebooks ==> this should be your mount point
 ARG NOTEBOOK_PASSWORD
-RUN jupyter-lab --generate-config
-RUN sed -i '/c.NotebookApp.notebook_dir/c\c.NotebookApp.notebook_dir = "'"/opt/notebooks"'"' ~/.jupyter/jupyter_notebook_config.py && \
+RUN umask 0000 && jupyter-lab --generate-config
+RUN umask 0000 && sed -i '/c.NotebookApp.notebook_dir/c\c.NotebookApp.notebook_dir = "'"/opt/notebooks"'"' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.open_browser/c\c.NotebookApp.open_browser = False' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.quit_button/c\c.NotebookApp.quit_button = True' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.token/c\c.NotebookApp.token = "'""'"' ~/.jupyter/jupyter_notebook_config.py && \
@@ -68,16 +68,16 @@ ENV RANDOM_SEED 2019
 COPY torchtest.py seed.py /opt/scripts/
 
 # this script runs seed.py whenever an ipython kernel/console is started
-COPY ipython_config.py ~/.ipython/profile_default/
+COPY ipython_config.py /root/.ipython/profile_default/
 
-RUN mkdir /opt/cache && \
-    pip freeze > ~/requirements.txt && \
-    conda list -n torch --export --json > ~/requirements.json
-ENV TORCH_HOME ~/cache/torch
-ENV FASTAI_HOME ~/cache/fastai
+RUN umask 0000 && mkdir /opt/cache && \
+    pip freeze > /root/requirements.txt && \
+    conda list -n torch --export --json > /root/requirements.json && \
+    chmod -R a+rwX /root
+ENV TORCH_HOME /root/cache/torch
+ENV FASTAI_HOME /root/cache/fastai
 ENV HOME /root/
-RUN chmod -R a+rwX /root && \
-    chmod -R a+rwX /opt
+
 
 # Make port 8888 available to the world outside this container
 EXPOSE 8888
