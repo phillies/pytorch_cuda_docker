@@ -27,7 +27,7 @@ RUN umask 0000 && conda update -n base -c defaults conda && \
     conda install -n torch pytorch torchvision cudatoolkit -c pytorch && \
     conda install -n torch -c pytorch -c fastai fastai && \
     conda install -n torch -c conda-forge imageio matplotlib seaborn pandas jupyter jupyterlab scikit-image scikit-learn tqdm \
-        jupyter_contrib_nbextensions nodejs tensorboard grpcio plotly ipympl widgetsnbextension
+        jupyter_contrib_nbextensions nodejs tensorboard grpcio plotly ipympl widgetsnbextension jupyter_nbextensions_configurator
 
 # This would install pillow-simd with optimized libjpeg
 # but currently this leads to a version clash of pillow 6.1 and pillow-simd 6.0
@@ -42,7 +42,7 @@ RUN umask 0000 && conda update -n base -c defaults conda && \
 ENV PATH $CONDAROOT/envs/torch/bin:$PATH
 RUN umask 0000 && echo "source activate torch" >> ~/.bashrc && \
     source activate torch &&\
-    pip install opencv-python albumentations pretrainedmodels efficientnet-pytorch torchsummary future absl-py jupyter-tensorboard hiddenlayer kaggle && \
+    pip install opencv-python albumentations pretrainedmodels efficientnet-pytorch torchsummary future absl-py jupyter-tensorboard hiddenlayer kaggle modelsummary && \
     pip install --no-dependencies git+https://github.com/qubvel/segmentation_models.pytorch
 # pip install pytest-xdist pytest-sugar pytest-repeat pytest-picked pytest-forked pytest-flakefinder pytest-cov nbsmoke
 
@@ -60,9 +60,6 @@ RUN umask 0000 && sed -i '/c.NotebookApp.notebook_dir/c\c.NotebookApp.notebook_d
     sed -i '/c.NotebookApp.allow_root/c\c.NotebookApp.allow_root = True' ~/.jupyter/jupyter_notebook_config.py && \
     sed -i '/c.NotebookApp.password/c\c.NotebookApp.password = "'"$NOTEBOOK_PASSWORD"'"' ~/.jupyter/jupyter_notebook_config.py && \
     jupyter labextension install @jupyter-widgets/jupyterlab-manager jupyterlab_tensorboard jupyter-matplotlib jupyterlab-plotly plotlywidget && \
-    # jupyter labextension install jupyterlab_tensorboard && \
-    # jupyter labextension install jupyter-matplotlib && \
-    # jupyter labextension install jupyterlab-plotly && \
     mkdir /opt/notebooks
 WORKDIR /opt/notebooks
 
@@ -81,6 +78,11 @@ ENV TORCH_HOME /root/cache/torch
 ENV FASTAI_HOME /root/cache/fastai
 ENV HOME /root/
 
+# for packages added later without having to rebuild the whole 
+RUN umask 0000 &&  \
+    source activate torch &&\
+    pip install jupyterlab-git && \
+    jupyter lab build
 
 # Make port 8888 available to the world outside this container
 EXPOSE 8888
